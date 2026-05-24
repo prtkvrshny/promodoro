@@ -4,15 +4,21 @@
    ═══════════════════════════════════════════ */
 
 // ── State ──
+const storedSettings = JSON.parse(localStorage.getItem('promodoro-settings')) || {
+  focus: 25,
+  shortBreak: 5,
+  longBreak: 15
+};
+
 const state = {
   mode: 'focus',
   modes: {
-    focus: { label: 'Focus', duration: 25 * 60 },
-    shortBreak: { label: 'Short Break', duration: 5 * 60 },
-    longBreak: { label: 'Long Break', duration: 15 * 60 },
+    focus: { label: 'Focus', duration: storedSettings.focus * 60 },
+    shortBreak: { label: 'Short Break', duration: storedSettings.shortBreak * 60 },
+    longBreak: { label: 'Long Break', duration: storedSettings.longBreak * 60 },
   },
-  timeLeft: 25 * 60,
-  totalTime: 25 * 60,
+  timeLeft: storedSettings.focus * 60,
+  totalTime: storedSettings.focus * 60,
   isRunning: false,
   interval: null,
   sessions: 0,
@@ -20,6 +26,7 @@ const state = {
   todos: JSON.parse(localStorage.getItem('promodoro-todos') || '[]'),
   todoPanelOpen: false,
   soundPanelOpen: false,
+  settingsPanelOpen: false,
   rainPlaying: false,
   audioCtx: null,
   rainNodes: null,
@@ -57,6 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
   showRandomQuote();
   setInterval(showRandomQuote, 30000);
   bindEvents();
+  
+  // Set initial input values based on loaded state
+  $('#setting-focus').value = state.modes.focus.duration / 60;
+  $('#setting-short').value = state.modes.shortBreak.duration / 60;
+  $('#setting-long').value = state.modes.longBreak.duration / 60;
+
   requestNotificationPermission();
 });
 
@@ -452,11 +465,10 @@ function bindEvents() {
     state.todoPanelOpen = !state.todoPanelOpen;
     $('.todo-panel').classList.toggle('open', state.todoPanelOpen);
     $('#tool-todo').classList.toggle('active', state.todoPanelOpen);
-    // Close sound panel
-    if (state.todoPanelOpen && state.soundPanelOpen) {
-      state.soundPanelOpen = false;
-      $('.sound-panel').classList.remove('open');
-      $('#tool-sound').classList.remove('active');
+    // Close others
+    if (state.todoPanelOpen) {
+      if (state.soundPanelOpen) $('#tool-sound').click();
+      if (state.settingsPanelOpen) $('#tool-settings').click();
     }
   });
 
@@ -465,11 +477,48 @@ function bindEvents() {
     state.soundPanelOpen = !state.soundPanelOpen;
     $('.sound-panel').classList.toggle('open', state.soundPanelOpen);
     $('#tool-sound').classList.toggle('active', state.soundPanelOpen);
-    if (state.soundPanelOpen && state.todoPanelOpen) {
-      state.todoPanelOpen = false;
-      $('.todo-panel').classList.remove('open');
-      $('#tool-todo').classList.remove('active');
+    if (state.soundPanelOpen) {
+      if (state.todoPanelOpen) $('#tool-todo').click();
+      if (state.settingsPanelOpen) $('#tool-settings').click();
     }
+  });
+
+  // Settings panel toggle
+  $('#tool-settings').addEventListener('click', () => {
+    state.settingsPanelOpen = !state.settingsPanelOpen;
+    $('.settings-panel').classList.toggle('open', state.settingsPanelOpen);
+    $('#tool-settings').classList.toggle('active', state.settingsPanelOpen);
+    if (state.settingsPanelOpen) {
+      if (state.todoPanelOpen) $('#tool-todo').click();
+      if (state.soundPanelOpen) $('#tool-sound').click();
+    }
+  });
+
+  // Settings Save
+  $('#settings-save-btn').addEventListener('click', () => {
+    const focusVal = parseInt($('#setting-focus').value) || 25;
+    const shortVal = parseInt($('#setting-short').value) || 5;
+    const longVal = parseInt($('#setting-long').value) || 15;
+
+    state.modes.focus.duration = focusVal * 60;
+    state.modes.shortBreak.duration = shortVal * 60;
+    state.modes.longBreak.duration = longVal * 60;
+
+    localStorage.setItem('promodoro-settings', JSON.stringify({
+      focus: focusVal,
+      shortBreak: shortVal,
+      longBreak: longVal
+    }));
+
+    // Reset timer immediately if paused
+    if (!state.isRunning) {
+      state.timeLeft = state.modes[state.mode].duration;
+      state.totalTime = state.modes[state.mode].duration;
+      renderTimer();
+    }
+
+    showToast('⚙️ Settings saved!');
+    $('#tool-settings').click(); // close panel
   });
 
   // Todo input
