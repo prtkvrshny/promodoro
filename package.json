@@ -1,0 +1,9 @@
+{
+  "name": "promodoro",
+  "version": "1.0.0",
+  "description": "Aesthetic Pomodoro Study Timer",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node setup.js"
+  }
+}
